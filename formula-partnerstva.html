@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Формула партнёрства — калькулятор</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#faf8f5;--card:#fff;--tx:#2a2326;--mut:#6f666a;--line:#e4dedb;--ac:#7a3a52;--acs:#f3e6ea;--ok:#2f7d4f;--warn:#b7791f;--bad:#b83a3a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#1b1719;--card:#262124;--tx:#f0e9ec;--mut:#a99fa4;--line:#3a3337;--ac:#d98aa5;--acs:#3a2a31;--ok:#6fc28f;--warn:#e0b050;--bad:#e57373}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#1b1719;--card:#262124;--tx:#f0e9ec;--mut:#a99fa4;--line:#3a3337;--ac:#d98aa5;--acs:#3a2a31;--ok:#6fc28f;--warn:#e0b050;--bad:#e57373}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:880px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 16px}
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tabs button{flex:1;min-width:110px;padding:10px 12px;border:1px solid var(--line);background:var(--card);color:var(--tx);border-radius:10px;font:inherit;cursor:pointer}
+.tabs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.row{display:grid;grid-template-columns:1fr 96px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border:0}
+.row b{display:block}
+.row small{color:var(--mut)}
+input[type=number]{width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit;text-align:center}
+.note{background:var(--acs);border-radius:10px;padding:10px 12px;font-size:.92rem;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.big{font-size:2rem;font-weight:700;line-height:1.1}
+.lbl{color:var(--mut);font-size:.85rem}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.8rem;font-weight:600;background:var(--acs);color:var(--ac)}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.sc{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--mut);font-weight:600}
+td.n,th.n{text-align:center}
+.q{border-left:4px solid var(--ac);padding-left:12px}
+button.sec{padding:8px 14px;border:1px solid var(--line);background:var(--card);color:var(--tx);border-radius:8px;font:inherit;cursor:pointer}
+.empty{color:var(--mut);padding:8px 0}
+</style>
+</head>
+<body>
+<div class="w">
+<h1>Формула партнёрства</h1>
+<p class="sub">Диагностика по методике Анжелики Торгашовой: ИКП, ИЦР и коэффициент эффективности.</p>
+<div class="tabs" id="tabs"></div>
+<div id="view"></div>
+<p style="margin-top:20px"><button class="sec" id="reset">Очистить все данные</button></p>
+</div>
+<script>
+var P=[
+{k:'ovs',n:'ОВП свой',h:'Ваш личный вклад: 1–3 минимально, 4–6 по обязанностям, 7–8 активно, 9–10 максимум',min:1,max:10},
+{k:'ovp',n:'ОВП партнёра',h:'Вклад партнёра по тем же критериям',min:1,max:10},
+{k:'c',n:'Ц — ценности',h:'Совпадение видения и стратегии',min:1,max:10},
+{k:'ek',n:'ЭК — экологичность коммуникации',h:'Качество общения: от постоянных конфликтов до синергии',min:1,max:10},
+{k:'sd',n:'СД — совместные договорённости',h:'Надёжность: выполняются ли обещания',min:1,max:10},
+{k:'k',n:'К — конфликтность',h:'ОБРАТНАЯ шкала: 1 — лучшее, 10 — худшее',min:1,max:10},
+{k:'u',n:'У — удовлетворённость',h:'Общее удовлетворение партнёрством',min:1,max:10},
+{k:'r',n:'Р — результаты',h:'Фактические достижения',min:1,max:10},
+{k:'o',n:'О — ожидания',h:'Чего хотели в начале: 1–3 выжить … 9–10 прорыв',min:1,max:10},
+{k:'vf',n:'ВФ — внешние факторы',h:'От −5 (кризис, давление) до +5 (идеальные условия)',min:-5,max:5}
+];
+var S={A:{},B:{}},tab='A';
+try{var t=localStorage.getItem('fp_data');if(t)S=JSON.parse(t)}catch(e){}
+function save(){try{localStorage.setItem('fp_data',JSON.stringify(S))}catch(e){}}
+function full(v){return P.every(function(p){return typeof v[p.k]==='number'&&!isNaN(v[p.k])})}
+function calc(v){
+ var ikp=((v.ov1+v.ov2)*v.c*v.ek*v.sd)/(v.k*100)+v.vf/10;
+ var icr=(v.u/10)*(v.r/v.o);
+ return{ikp:ikp,icr:icr,e:ikp!==0?icr/ikp:null};
+}
+function own(v,w){return{ov1:v.ovs,ov2:v.ovp,c:v.c,ek:v.ek,sd:v.sd,k:v.k,u:v.u,r:v.r,o:v.o,vf:v.vf}}
+function comb(a,b){
+ var m=function(x,y){return(x+y)/2};
+ return{ov1:m(a.ovs,b.ovp),ov2:m(b.ovs,a.ovp),c:m(a.c,b.c),ek:m(a.ek,b.ek),sd:m(a.sd,b.sd),k:m(a.k,b.k),u:m(a.u,b.u),r:m(a.r,b.r),o:m(a.o,b.o),vf:m(a.vf,b.vf)};
+}
+function lvlIkp(x){return x<3?['Критический','bad']:x<6?['Низкий','bad']:x<9?['Удовлетворительный','warn']:x<13?['Хороший','ok']:['Отличный','ok']}
+function lvlIcr(x){return x<0.5?['Критический','bad']:x<0.8?['Низкий','bad']:x<=1.2?['Удовлетворительный','warn']:x<=2?['Хороший','ok']:['Отличный','ok']}
+function lvlE(x){return x<0.5?'Сильный процессный перекос':x<0.8?'Лёгкий процессный перекос':x<=1.2?'Сбалансированное партнёрство':x<=2?'Лёгкий результатный перекос':'Сильный результатный перекос'}
+function quad(ikp,icr){
+ if(ikp>=7&&icr>=1)return['Квадрант 1: достаточно хорошее партнёрство','Поддерживать практики, документировать процессы, планировать рост на 3–5 лет.'];
+ if(ikp>=7)return['Квадрант 2: эффективное, но нерезультативное','Аудит бизнес-модели, исследование рынка, корректировка ожиданий и стратегии.'];
+ if(icr>=1)return['Квадрант 3: результативное, но неэффективное','Разделить зоны ответственности, ввести регулярные встречи по отношениям, система разрешения конфликтов, при необходимости медиатор.'];
+ return['Квадрант 4: кризисное партнёрство','Честная оценка целесообразности продолжения, внешний арбитр, план спасения на 30–60–90 дней.'];
+}
+function f(x,d){return x.toFixed(d===undefined?2:d)}
+function card(title,r){
+ if(!r)return'<div class="card"><div class="lbl">'+title+'</div><div class="empty">Заполните все 10 параметров.</div></div>';
+ var a=lvlIkp(r.ikp),b=lvlIcr(r.icr),q=quad(r.ikp,r.icr);
+ return'<div class="card"><div class="lbl">'+title+'</div>'+
+ '<div class="grid" style="margin:8px 0"><div><div class="lbl">ИКП</div><div class="big">'+f(r.ikp)+'</div><span class="tag '+a[1]+'">'+a[0]+'</span></div>'+
+ '<div><div class="lbl">ИЦР</div><div class="big">'+f(r.icr)+'</div><span class="tag '+b[1]+'">'+b[0]+'</span></div>'+
+ '<div><div class="lbl">Э = ИЦР / ИКП</div><div class="big">'+(r.e===null?'—':f(r.e,3))+'</div><span class="tag">'+(r.e===null?'ИКП = 0':lvlE(r.e))+'</span></div></div>'+
+ '<div class="q"><b>'+q[0]+'</b><br><span class="lbl">'+q[1]+'</span></div></div>';
+}
+function inputs(who){
+ var h='<div class="note">Партнёр '+(who==='A'?'А':'Б')+' заполняет свою таблицу независимо, не подглядывая в оценки второго. Честность важнее красивых цифр.</div><div class="card">';
+ P.forEach(function(p){
+  var v=S[who][p.k];
+  h+='<div class="row"><div><b>'+p.n+'</b><small>'+p.h+'</small></div><input type="number" inputmode="numeric" step="1" min="'+p.min+'" max="'+p.max+'" data-k="'+p.k+'" placeholder="'+p.min+'…'+p.max+'" value="'+(typeof v==='number'?v:'')+'"></div>';
+ });
+ return h+'</div>';
+}
+function diffs(){
+ var A=S.A,B=S.B,rows=[
+ ['ОВП А (сам А ↔ оценка Б)',A.ovs,B.ovp],['ОВП Б (сам Б ↔ оценка А)',B.ovs,A.ovp]];
+ P.slice(2).forEach(function(p){rows.push([p.n,A[p.k],B[p.k]])});
+ var h='<div class="card sc"><div class="lbl">Расхождения оценок (шаг 1 этапа 4)</div><table><tr><th>Параметр</th><th class="n">А</th><th class="n">Б</th><th class="n">Δ</th><th>Зона</th></tr>';
+ rows.forEach(function(r){
+  if(typeof r[1]!=='number'||typeof r[2]!=='number'){h+='<tr><td>'+r[0]+'</td><td class="n">'+(r[1]===undefined?'—':r[1])+'</td><td class="n">'+(r[2]===undefined?'—':r[2])+'</td><td class="n">—</td><td></td></tr>';return}
+  var d=Math.abs(r[1]-r[2]);
+  var z=d<=1?['Согласие','ok']:d<=3?['Зона интереса','warn']:['Слепая зона','bad'];
+  h+='<tr><td>'+r[0]+'</td><td class="n">'+r[1]+'</td><td class="n">'+r[2]+'</td><td class="n">'+d+'</td><td class="'+z[1]+'">'+z[0]+'</td></tr>';
+ });
+ return h+'</table></div>';
+}
+function results(){
+ var okA=full(S.A),okB=full(S.B);
+ var h=card('Партнёр А (индивидуально)',okA?calc(own(S.A)):null)+card('Партнёр Б (индивидуально)',okB?calc(own(S.B)):null);
+ h+=card('Общий результат (усреднённые оценки)',okA&&okB?calc(comb(S.A,S.B)):null);
+ h+=diffs();
+ h+='<div class="note">При очень высоком ИКП (больше 13) Э может быть экстремально низким и формально указывать на процессный перекос. В этом случае ориентируйтесь на положение в матрице. Цифры — зеркало: главное — честный разговор и план на 30–45 дней с повторной диагностикой.</div>';
+ return h;
+}
+function render(){
+ var tb=document.getElementById('tabs');
+ tb.innerHTML=[['A','Партнёр А'],['B','Партнёр Б'],['R','Результаты']].map(function(t){return'<button data-t="'+t[0]+'" class="'+(tab===t[0]?'on':'')+'">'+t[1]+'</button>'}).join('');
+ var v=document.getElementById('view');
+ v.innerHTML=tab==='R'?results():inputs(tab);
+}
+document.getElementById('tabs').addEventListener('click',function(e){var t=e.target.getAttribute('data-t');if(t){tab=t;render()}});
+document.getElementById('view').addEventListener('input',function(e){
+ var k=e.target.getAttribute('data-k');if(!k||tab==='R')return;
+ var p=P.filter(function(x){return x.k===k})[0],n=parseFloat(e.target.value);
+ if(isNaN(n))delete S[tab][k];else S[tab][k]=Math.min(p.max,Math.max(p.min,n));
+ save();
+});
+document.getElementById('reset').addEventListener('click',function(){
+ if(confirm('Удалить все введённые оценки?')){S={A:{},B:{}};save();render()}
+});
+render();
+</script>
+</body>
+</html>
